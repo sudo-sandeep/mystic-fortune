@@ -60,6 +60,10 @@ The tests use Node's built-in test runner and cover payout calculation, reel wra
 
 The natural game's theoretical RTP is **exactly 92%** (the rational return is 23/25). Its previous paytable returned **3.009829944368418%**. A completed **1,000,000,000-spin** audit returned **92.002354288%**, with a 95% confidence interval of **91.9824735945%–92.0222349815%** and a paying-spin rate of **12.0464238%**. The audit uses the same uniformly selected reel stops and scoring rules, checks its optimized scoring against 10,000 production-generated outcomes, and excludes developer forcers, replays, animations and bankroll stopping. The exact calculation includes overlapping paylines and per-line cent rounding. A finite sample can differ from 92%; the engine does not force a player's individual results to that percentage. See [the analysis](reports/RTP-ANALYSIS.md) and [the complete audit](reports/rtp-1billion.json). Scatter currently pays as an ordinary line symbol; wild substitution, free spins, and scatter bonuses are not implemented.
 
+## Link previews
+
+The document head contains static Open Graph and large-image card metadata for sharing the public Netlify URL. The preview image is `public/social/mystic-fortune-preview-v1.jpg` (1200 × 630, approximately 125 KiB), composed from the existing logo and theme. Its editable HTML/CSS source is `scripts/share-card.html`; view it through the development server at a 1200 × 630 viewport to render a replacement card. Version the image filename when replacing it, and update the metadata URLs. If the production domain changes, update the canonical, Open Graph and image URLs in `index.html` together. The build copies the JPEG unchanged into `dist/social/`, so crawlers can fetch both the metadata and image without JavaScript, a player session or the intro screen.
+
 ## Source layout
 
 - `src/game.ts`: outcomes, paylines, forced boards, and guarded credit settlement.

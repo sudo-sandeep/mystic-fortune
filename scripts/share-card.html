@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mystic Fortune share card source</title>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 36%, #502476 0%, #24113f 45%, #0a0718 100%);
+  color: #f3dba1;
+}
+body::before, body::after {
+  content: ''; position: absolute; inset: 26px;
+  border: 2px solid #bc8e44; border-radius: 22px;
+}
+body::after { inset: 35px; border: 1px solid #694d41; border-radius: 14px; }
+.halo {
+  position: absolute; width: 530px; height: 530px; top: -50px;
+  border: 1px solid #946da635; border-radius: 50%;
+  box-shadow: 0 0 0 32px #956ba309, 0 0 0 67px #956ba309;
+}
+.logo { position: relative; width: 940px; height: auto; margin-top: 24px; }
+.tagline { position: relative; margin: 30px 0 24px; font: 30px Georgia, serif; letter-spacing: .6px; }
+.details { position: relative; font: 16px 'Segoe UI', sans-serif; letter-spacing: 4px; text-transform: uppercase; color: #c2abc9; }
+.details span { color: #e6bc68; margin: 0 16px; }
+.star { position: absolute; color: #e1bd72; font: 26px Georgia, serif; }
+.one { left: 80px; top: 86px; } .two { right: 85px; top: 91px; }
+.three { left: 94px; bottom: 87px; font-size: 19px; } .four { right: 95px; bottom: 83px; font-size: 19px; }
+</style>
+</head>
+<body>
+<div class="halo"></div>
+<span class="star one">✦</span><span class="star two">✦</span>
+<span class="star three">✧</span><span class="star four">✧</span>
+<img class="logo" src="/assets/logo.png" alt="Mystic Fortune">
+<p class="tagline">A realm of magic. A moment of fortune.</p>
+<div class="details">25 paylines <span>✦</span> Virtual-credit demo</div>
+</body>
+</html>
