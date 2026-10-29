@@ -107,7 +107,12 @@ function randomIndex(length: number, random: () => number): number {
   return Math.floor(value * length);
 }
 
-export function createBoard(random: () => number = Math.random): Board {
+export function secureRandom(): number {
+  const words = crypto.getRandomValues(new Uint32Array(2));
+  return (words[0] * 0x200000 + (words[1] >>> 11)) / 0x20000000000000;
+}
+
+export function createBoard(random: () => number = secureRandom): Board {
   return REEL_STRIPS.map(strip => {
     const stop = randomIndex(strip.length, random);
     return Array.from({ length: ROW_COUNT }, (_, row) => strip[(stop + row) % strip.length]);
@@ -133,7 +138,7 @@ export function scoreBoard(board: Board, wager: number): SpinResult {
   return { total: lines.reduce((sum, line) => sum + cents(line.amount), 0) / 100, lines, bonus: 0 };
 }
 
-export function forcedBoard(kind: ForceKind, random: () => number = Math.random): Board {
+export function forcedBoard(kind: ForceKind, random: () => number = secureRandom): Board {
   const out = Array.from({ length: REEL_COUNT }, (_, column) =>
     Array.from({ length: ROW_COUNT }, (_, row) => (column * 3 + row * 4 + 1) % SYMBOLS.length));
   if (kind === 'big') return out.map(() => [0, 0, 0]);
@@ -165,8 +170,10 @@ export class GameSession {
   private activeRound: Round | null = null;
   private settled = false;
   private replaying = false;
+  private readonly allowForcers: boolean;
 
-  constructor(balance = STARTING_BALANCE, bet = 10) {
+  constructor(balance = STARTING_BALANCE, bet = 10, allowForcers = false) {
+    this.allowForcers = allowForcers;
     this.balanceCents = cents(balance);
     this.betCents = cents(bet);
     this.setBet(bet);
@@ -183,7 +190,8 @@ export class GameSession {
     this.betCents = cents(bet);
   }
 
-  startRound(force: ForceKind | null = null, random: () => number = Math.random): Round | null {
+  startRound(force: ForceKind | null = null, random: () => number = secureRandom): Round | null {
+    if (force && !this.allowForcers) throw new Error('Outcome forcers are disabled.');
     if (this.busy || this.balanceCents < this.betCents) return null;
     // Compute and freeze the entire outcome before debiting or animating it.
     const board = force ? forcedBoard(force, random) : createBoard(random);
@@ -210,18 +218,20 @@ export class GameSession {
     return round;
   }
 
-  settleRound(round: Round): void {
+  settleRound(round: Round, persist?: (balance: number) => void): void {
     this.assertActive(round);
     if (this.settled) throw new Error('Round has already been credited.');
     const balance = this.balanceCents + (this.replaying ? 0 : cents(round.result.total));
     if (!Number.isSafeInteger(balance)) throw new RangeError('Credit balance exceeds the supported range.');
+    // A failed durable commit leaves the round unsettled and eligible for cancellation.
+    persist?.(balance / 100);
     this.balanceCents = balance;
     this.settled = true;
   }
 
   finishRound(round: Round): void {
     this.assertActive(round);
-    // Animation failures before settlement return the wager. Credited wins stay credited.
+    // Cancel failed acceptance; committed rounds survive presentation failures.
     if (!this.settled && !this.replaying) this.balanceCents += cents(round.wager);
     this.activeRound = null;
     this.settled = false;

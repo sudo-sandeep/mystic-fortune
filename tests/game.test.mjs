@@ -67,7 +67,7 @@ test('malformed inputs are rejected before they produce invalid awards', () => {
 });
 
 test('a round debits once and rejects duplicate starts and bet changes', () => {
-  const session = new GameSession(100, 10);
+  const session = new GameSession(100, 10, true);
   const round = session.startRound('five');
   assert.ok(round);
   assert.equal(session.balance, 90);
@@ -83,7 +83,7 @@ test('a round debits once and rejects duplicate starts and bet changes', () => {
 });
 
 test('insufficient funds and invalid wagers never debit the balance', () => {
-  const session = new GameSession(5, 10);
+  const session = new GameSession(5, 10, true);
   assert.equal(session.startRound(), null);
   assert.equal(session.balance, 5);
   for (const value of [0, -1, 3, Number.NaN, Infinity]) assert.throws(() => session.setBet(value));
@@ -96,14 +96,14 @@ test('insufficient funds and invalid wagers never debit the balance', () => {
 });
 
 test('failed outcome generation leaves the balance and session unchanged', () => {
-  const session = new GameSession(100, 10);
+  const session = new GameSession(100, 10, true);
   assert.throws(() => session.startRound(null, () => Number.NaN), RangeError);
   assert.equal(session.balance, 100);
   assert.equal(session.busy, false);
 });
 
 test('an interrupted round refunds its wager exactly once', () => {
-  const session = new GameSession(100, 10);
+  const session = new GameSession(100, 10, true);
   const round = session.startRound('five');
   session.finishRound(round);
   assert.equal(session.balance, 100);
@@ -112,7 +112,7 @@ test('an interrupted round refunds its wager exactly once', () => {
 });
 
 test('presentation failure after settlement preserves the credited award', () => {
-  const session = new GameSession(100, 10);
+  const session = new GameSession(100, 10, true);
   const round = session.startRound('big');
   session.settleRound(round);
   session.finishRound(round);
@@ -120,7 +120,7 @@ test('presentation failure after settlement preserves the credited award', () =>
 });
 
 test('forced Big Win pays the 25 actual winning lines using the new paytable', () => {
-  const session = new GameSession(100, 10);
+  const session = new GameSession(100, 10, true);
   const round = session.startRound('big');
   assert.equal(round.result.total, 6705);
   assert.equal(round.result.bonus, 0);
@@ -129,14 +129,14 @@ test('forced Big Win pays the 25 actual winning lines using the new paytable', (
 });
 
 test('round outcomes and awards cannot be changed after the wager is placed', () => {
-  const round = new GameSession().startRound('five');
+  const round = new GameSession(undefined, undefined, true).startRound('five');
   assert.throws(() => { round.board[0][0] = 10; }, TypeError);
   assert.throws(() => { round.result.total = 1000; }, TypeError);
   assert.throws(() => { round.result.lines[0].cells[0][0] = 4; }, TypeError);
 });
 
 test('cent accounting stays exact across repeated fractional awards and wagers', () => {
-  const session = new GameSession(100, 1);
+  const session = new GameSession(100, 1, true);
   for (let index = 0; index < 100; index++) {
     const round = session.startRound('three');
     session.settleRound(round);
@@ -148,7 +148,7 @@ test('cent accounting stays exact across repeated fractional awards and wagers',
 
 test('Stop lands each reel exactly once and preserves already landed reels', async () => {
   const controller = new AbortController();
-  const board = new GameSession().startRound('five').board;
+  const board = new GameSession(undefined, undefined, true).startRound('five').board;
   const landings = [];
   await playReels(board, async (column, result, slammed) => {
     landings.push({ column, result, slammed });
@@ -162,7 +162,7 @@ test('Stop lands each reel exactly once and preserves already landed reels', asy
 test('an immediate Stop uses the same frozen board for every reel', async () => {
   const controller = new AbortController();
   controller.abort();
-  const board = new GameSession().startRound('four').board;
+  const board = new GameSession(undefined, undefined, true).startRound('four').board;
   const landings = [];
   await playReels(board, async (column, result, slammed) => {
     landings.push(column);

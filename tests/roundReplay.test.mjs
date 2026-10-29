@@ -7,7 +7,7 @@ import { BASE_LINE_PAYS } from '../src/paytable.ts';
 import { playReels } from '../src/timing.ts';
 
 test('every accepted round gets a unique ID even when outcomes and wagers are identical', () => {
-  const session = new GameSession();
+  const session = new GameSession(undefined, undefined, true);
   const ids = new Set();
   for (let index = 0; index < 100; index++) {
     const round = session.startRound('five');
@@ -22,7 +22,7 @@ test('every accepted round gets a unique ID even when outcomes and wagers are id
 test('IDs restore the exact natural and forced rounds at every supported wager', () => {
   for (const bet of BETS) {
     for (const force of [null, 'big', 'five', 'four', 'three', 'scatter', 'loss']) {
-      const original = new GameSession(10_000, bet).startRound(force, () => .2);
+      const original = new GameSession(10_000, bet, true).startRound(force, () => .2);
       for (let repeat = 0; repeat < 3; repeat++) {
         const replay = roundFromId(`  ${original.id.toLowerCase()}  `);
         assert.deepEqual(replay, original);
@@ -57,8 +57,8 @@ test('the MF1 format keeps a previously issued ID compatible', () => {
 });
 
 test('invalid, damaged, future-version and malformed IDs are rejected without changing the session', () => {
-  const original = new GameSession().startRound('five');
-  const session = new GameSession(100, 20);
+  const original = new GameSession(undefined, undefined, true).startRound('five');
+  const session = new GameSession(100, 20, true);
   const ids = [null, 12, {}, '', 'hello', 'x'.repeat(10000), original.id.slice(0, -1),
     original.id.replace('MF1-', 'MF2-'), original.id.replace(/.$/, original.id.endsWith('0') ? '1' : '0'),
     original.id.replace(/-[0-9A]{15}-/, '-ZZZZZZZZZZZZZZZ-')];
@@ -74,8 +74,8 @@ test('invalid, damaged, future-version and malformed IDs are rejected without ch
 });
 
 test('repeated replays use the original wager and bonus without debiting or crediting balance', () => {
-  const original = new GameSession(10_000, 500).startRound('big');
-  const session = new GameSession(0, 1);
+  const original = new GameSession(10_000, 500, true).startRound('big');
+  const session = new GameSession(0, 1, true);
   for (let index = 0; index < 5; index++) {
     const replay = session.startReplay(original.id);
     assert.deepEqual(replay, original);
@@ -96,8 +96,8 @@ test('repeated replays use the original wager and bonus without debiting or cred
 });
 
 test('interrupted replays do not refund an uncharged wager and normal accounting resumes afterward', () => {
-  const id = new GameSession().startRound('five').id;
-  const session = new GameSession(100, 10);
+  const id = new GameSession(undefined, undefined, true).startRound('five').id;
+  const session = new GameSession(100, 10, true);
   const replay = session.startReplay(id);
   session.finishRound(replay);
   assert.equal(session.balance, 100);
@@ -110,7 +110,7 @@ test('interrupted replays do not refund an uncharged wager and normal accounting
 });
 
 test('a round cannot start replay while an ordinary spin is active', () => {
-  const session = new GameSession();
+  const session = new GameSession(undefined, undefined, true);
   const normal = session.startRound('big');
   assert.equal(session.startReplay(normal.id), null);
   session.settleRound(normal);
@@ -119,13 +119,13 @@ test('a round cannot start replay while an ordinary spin is active', () => {
 });
 
 test('replaying the same ID produces the same cosmetic strips and reel landings', async () => {
-  const original = new GameSession().startRound('four');
+  const original = new GameSession(undefined, undefined, true).startRound('four');
   const sequence = id => {
     const random = roundAnimationRandom(id);
     return Array.from({ length: 100 }, random);
   };
   assert.deepEqual(sequence(original.id), sequence(roundFromId(original.id).id));
-  assert.notDeepEqual(sequence(original.id), sequence(new GameSession().startRound('four').id));
+  assert.notDeepEqual(sequence(original.id), sequence(new GameSession(undefined, undefined, true).startRound('four').id));
   assert.ok(sequence(original.id).every(value => value >= 0 && value < 1));
   const controller = new AbortController();
   controller.abort();
@@ -140,7 +140,7 @@ test('history survives a fresh instance, deduplicates replays and caps retained 
   let stored;
   const storage = { getItem: () => stored, setItem: (_, value) => { stored = value; } };
   const history = new RoundHistory(storage);
-  const rounds = Array.from({ length: ROUND_HISTORY_LIMIT + 5 }, () => new GameSession().startRound('five'));
+  const rounds = Array.from({ length: ROUND_HISTORY_LIMIT + 5 }, () => new GameSession(undefined, undefined, true).startRound('five'));
   rounds.forEach(round => history.remember(round));
   assert.equal(history.rounds.length, ROUND_HISTORY_LIMIT);
   assert.deepEqual(history.rounds[0], rounds.at(-1));
@@ -154,7 +154,7 @@ test('history survives a fresh instance, deduplicates replays and caps retained 
 });
 
 test('unavailable, full or damaged storage cannot stop play or ID replay', () => {
-  const round = new GameSession().startRound('three');
+  const round = new GameSession(undefined, undefined, true).startRound('three');
   for (const raw of ['not JSON', '{}', 'x'.repeat(10001), JSON.stringify(['broken', null, round.id, round.id])]) {
     const history = new RoundHistory({ getItem: () => raw, setItem: () => { throw new Error('Full'); } });
     history.remember(round);

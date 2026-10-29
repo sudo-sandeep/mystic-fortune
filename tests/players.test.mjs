@@ -44,8 +44,8 @@ test('loading another player isolates balance and settings and restores them on 
 
 test('each player has a separate replay archive after switching and refreshing', () => {
   const storage = memoryStorage();
-  const first = new GameSession().startRound('five');
-  const second = new GameSession().startRound('big');
+  const first = new GameSession(undefined, undefined, true).startRound('five');
+  const second = new GameSession(undefined, undefined, true).startRound('big');
   const alice = new RoundHistory(storage, 'ALICE');
   const bob = new RoundHistory(storage, 'BOB');
   alice.remember(first);
@@ -58,7 +58,7 @@ test('each player has a separate replay archive after switching and refreshing',
 
 test('legacy browser rounds migrate only into the initial player archive', () => {
   const storage = memoryStorage();
-  const legacy = new GameSession().startRound('three');
+  const legacy = new GameSession(undefined, undefined, true).startRound('three');
   new RoundHistory(storage).remember(legacy);
   const store = new PlayerStore(storage);
   const initial = new RoundHistory(storage, store.current.id, store.createdInitialPlayer);
@@ -73,12 +73,12 @@ test('legacy browser rounds migrate only into the initial player archive', () =>
 test('last round and credited balance resume without paying or debiting the round again', () => {
   const storage = memoryStorage();
   const store = new PlayerStore(storage);
-  const session = new GameSession();
+  const session = new GameSession(undefined, undefined, true);
   const round = session.startRound('big');
   session.settleRound(round);
   store.save({ ...store.current, balance: session.balance, lastRoundId: round.id });
   const refreshed = new PlayerStore(storage).current;
-  const resumed = new GameSession(refreshed.balance, refreshed.bet);
+  const resumed = new GameSession(refreshed.balance, refreshed.bet, true);
   assert.equal(resumed.balance, 16695);
   const replay = resumed.startReplay(refreshed.lastRoundId);
   resumed.settleRound(replay);

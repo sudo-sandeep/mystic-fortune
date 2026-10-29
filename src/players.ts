@@ -1,7 +1,9 @@
 import { BETS, STARTING_BALANCE, roundFromId } from './game.ts';
 
-export const PLAYER_STORAGE_PREFIX = 'mystic-fortune.player.v1.';
-export const ACTIVE_PLAYER_KEY = 'mystic-fortune.active-player.v1';
+export const PLAYER_STORAGE_PREFIX = 'mystic-fortune.player.v2.';
+export const ACTIVE_PLAYER_KEY = 'mystic-fortune.active-player.v2';
+const LEGACY_PLAYER_PREFIX = 'mystic-fortune.player.v1.';
+const LEGACY_ACTIVE_KEY = 'mystic-fortune.active-player.v1';
 const CURRENCIES = ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'] as const;
 type PlayerStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
@@ -52,6 +54,7 @@ export class PlayerStore {
   readonly createdInitialPlayer: boolean;
   private readonly storage: PlayerStorage | null;
   private readonly cache = new Map<string, PlayerProfile>();
+  private readonly archives = new Map<string, readonly string[]>();
   private active!: PlayerProfile;
   private persistent: boolean;
 
@@ -61,7 +64,7 @@ export class PlayerStore {
     let previous: string | null = null;
     let saved: string | null | undefined;
     try {
-      saved = storage?.getItem(ACTIVE_PLAYER_KEY);
+      saved = storage?.getItem(ACTIVE_PLAYER_KEY) ?? storage?.getItem(LEGACY_ACTIVE_KEY);
     } catch { this.persistent = false; }
     try { if (saved) previous = normalizePlayerId(saved); }
     catch { /* Replace an invalid active ID without touching any saved profiles. */ }
@@ -71,12 +74,17 @@ export class PlayerStore {
 
   get current(): PlayerProfile { return this.active; }
   get storageAvailable(): boolean { return this.persistent; }
+  get roundIds(): readonly string[] { return this.archives.get(this.active.id) ?? []; }
+
+  private serialize(profile: PlayerProfile, roundIds = this.archives.get(profile.id) ?? []): string {
+    return JSON.stringify({ version: 2, ...profile, roundIds });
+  }
 
   load(input: string): PlayerProfile {
     const id = normalizePlayerId(input);
     const profile = this.find(id);
     this.active = profile;
-    this.write(PLAYER_STORAGE_PREFIX + id, JSON.stringify({ version: 1, ...profile }));
+    this.write(PLAYER_STORAGE_PREFIX + id, this.serialize(profile));
     this.write(ACTIVE_PLAYER_KEY, id);
     return profile;
   }
@@ -86,7 +94,7 @@ export class PlayerStore {
     const id = normalizePlayerId(input);
     if (!this.storage) throw new Error('Browser storage is unavailable. Enable it before loading another player.');
     const profile = this.find(id);
-    const saved = JSON.stringify({ version: 1, ...profile });
+    const saved = this.serialize(profile);
     try {
       this.storage.setItem(PLAYER_STORAGE_PREFIX + id, saved);
       this.storage.setItem(ACTIVE_PLAYER_KEY, id);
@@ -107,11 +115,13 @@ export class PlayerStore {
     if (!profile) {
       profile = freshPlayer(id);
       try {
-        const raw = this.storage?.getItem(PLAYER_STORAGE_PREFIX + id);
+        // Import once into v2; an older open page can only write its obsolete v1 key.
+        const raw = this.storage?.getItem(PLAYER_STORAGE_PREFIX + id)
+          ?? this.storage?.getItem(LEGACY_PLAYER_PREFIX + id);
         if (raw && raw.length <= 10_000) {
           const data: unknown = JSON.parse(raw);
           if (typeof data === 'object' && data !== null && !Array.isArray(data)
-            && 'version' in data && data.version === 1) {
+            && 'version' in data && (data.version === 1 || data.version === 2)) {
             const saved = data as Record<string, unknown>;
             const candidate: PlayerProfile = {
               id, balance: saved.balance as number, bet: saved.bet as number,
@@ -120,6 +130,16 @@ export class PlayerStore {
               lastReplay: saved.lastReplay as boolean,
             };
             validate(candidate);
+            const ids: string[] = [];
+            if (Array.isArray(saved.roundIds)) {
+              for (const value of saved.roundIds.slice(0, 30)) {
+                try {
+                  const round = roundFromId(value);
+                  if (!ids.includes(round.id)) ids.push(round.id);
+                } catch { /* Ignore damaged archive entries. */ }
+              }
+            }
+            this.archives.set(id, Object.freeze(ids));
             profile = Object.freeze(candidate);
           }
         }
@@ -134,8 +154,32 @@ export class PlayerStore {
     validate(profile);
     this.active = Object.freeze({ ...profile, balance: Math.round(profile.balance * 100) / 100 });
     this.cache.set(profile.id, this.active);
-    this.write(PLAYER_STORAGE_PREFIX + profile.id, JSON.stringify({ version: 1, ...this.active }));
+    this.write(PLAYER_STORAGE_PREFIX + profile.id, this.serialize(this.active));
     return this.active;
+  }
+
+  /** One atomic storage entry contains the final balance, outcome and replay archive.
+   * Call only while holding the origin-wide game lease. No animation precedes this write.
+   */
+  commitRound(profile: PlayerProfile): PlayerProfile {
+    if (profile.id !== this.active.id) throw new Error('Cannot commit a different player.');
+    validate(profile);
+    if (!profile.lastRoundId || profile.lastReplay) throw new Error('Expected a new game round.');
+    if (!this.storage) throw new Error('Browser storage is unavailable. Enable it to play.');
+    const ids = Object.freeze([profile.lastRoundId, ...this.roundIds.filter(id => id !== profile.lastRoundId)].slice(0, 30));
+    const accepted = Object.freeze({ ...profile, balance: Math.round(profile.balance * 100) / 100 });
+    try {
+      // localStorage.setItem is atomic: quota/security failures leave the old entry intact.
+      this.storage.setItem(PLAYER_STORAGE_PREFIX + profile.id, this.serialize(accepted, ids));
+    } catch {
+      this.persistent = false;
+      throw new Error('Could not save this round. Free browser storage and try again. No wager was taken.');
+    }
+    this.active = accepted;
+    this.cache.set(profile.id, accepted);
+    this.archives.set(profile.id, ids);
+    this.persistent = true;
+    return accepted;
   }
 
   private write(key: string, value: string): void {

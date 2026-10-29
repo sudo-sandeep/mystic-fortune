@@ -10,9 +10,10 @@ export class RoundHistory {
   private readonly storage: HistoryStorage | null;
   private readonly key: string;
 
-  constructor(storage: HistoryStorage | null, playerId?: string, importLegacy = false) {
+  constructor(storage: HistoryStorage | null, playerId?: string, importLegacy = false, committedIds: readonly string[] = []) {
     this.storage = storage;
     this.key = playerId ? `${KEY}.${playerId}` : KEY;
+    this.ids = [...committedIds];
     try {
       const raw = storage?.getItem(this.key) ?? (importLegacy ? storage?.getItem(KEY) : null);
       if (!raw || raw.length > 10_000) return;
@@ -21,7 +22,7 @@ export class RoundHistory {
       for (const id of parsed.slice(0, ROUND_HISTORY_LIMIT)) {
         try {
           const round = roundFromId(id);
-          if (!this.ids.includes(round.id)) this.ids.push(round.id);
+          if (!this.ids.includes(round.id) && this.ids.length < ROUND_HISTORY_LIMIT) this.ids.push(round.id);
         } catch { /* Ignore damaged or unsupported entries individually. */ }
       }
       if (importLegacy) this.persist();

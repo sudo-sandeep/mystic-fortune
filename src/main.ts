@@ -6,6 +6,7 @@ import { RoundMessageCycle } from './roundMessages.ts';
 import { RoundHistory } from './roundHistory.ts';
 import { roundAnimationRandom } from './roundId.ts';
 import { PlayerStore } from './players.ts';
+import { withGameLock, type GameLease } from './tabLock.ts';
 import {
   BETS, GameSession, PAYLINES, STARTING_BALANCE, createBoard, roundFromId,
   type ForceKind, type Round, type SpinResult,
@@ -25,6 +26,18 @@ function button(id: string): HTMLButtonElement {
   return node;
 }
 
+function blockedGame(reason: string): void {
+  element('intro-loading-content').hidden = false;
+  element('intro-progress').hidden = true;
+  element('intro-sound-prompt').hidden = true;
+  element('intro-status').textContent = reason;
+  const retry = button('intro-retry');
+  retry.hidden = false;
+  retry.textContent = 'TRY AGAIN';
+  retry.onclick = () => window.location.reload();
+}
+
+function startGame(lease: GameLease): void {
 // Cache references and formatters; the win counter updates on every animation frame.
 const ui = {
   reels: element('reels'), balance: element('balance'), bet: element('bet'),
@@ -32,8 +45,8 @@ const ui = {
   playTime: element('play-time'), spin: button('spin'), minus: button('minus'),
   plus: button('plus'), betTrigger: button('bet-trigger'),
   currencyTrigger: button('currency-trigger'), currencyCode: element('currency-code'),
-  forcerTrigger: button('forcer-launch'), betOptions: element('bet-options'),
-  currencyOptions: element('currency-options'), forcerOptions: element('forcer-options'),
+  forcerTrigger: import.meta.env.DEV ? button('forcer-launch') : null, betOptions: element('bet-options'),
+  currencyOptions: element('currency-options'), forcerOptions: import.meta.env.DEV ? element('forcer-options') : null,
   roundCopy: button('round-copy'),
   roundLaunch: button('round-launch'), roundMode: element('round-mode'), roundStatus: element('round-status'),
   replayId: element('replay-id') as HTMLInputElement, replayError: element('replay-error'),
@@ -64,18 +77,18 @@ let player = players.current;
 let currency: typeof CURRENCIES[number] = CURRENCIES.find(item => item.code === player.currency) ?? CURRENCIES[0];
 const money = (value: number) => formatters.get(currency.code)!.format(value * currency.rate);
 
-const forceOptions: readonly { id: ForceKind; title: string }[] = [
+const forceOptions: readonly { id: ForceKind; title: string }[] = import.meta.env.DEV ? [
   { id: 'big', title: '✦ Big Win (25×+)' },
   { id: 'five', title: '✦ 5 of a Kind' },
   { id: 'four', title: '✦ 4 of a Kind' },
   { id: 'three', title: '✦ 3 of a Kind' },
   { id: 'scatter', title: '✦ Scatter Symbols' },
   { id: 'loss', title: '✦ No Win' },
-];
+] : [];
 
 type Phase = 'loading' | 'idle' | 'spinning' | 'presenting' | 'error';
-const session = new GameSession(player.balance, player.bet);
-const history = new RoundHistory(playerStorage, player.id, players.createdInitialPlayer);
+const session = new GameSession(player.balance, player.bet, import.meta.env.DEV);
+const history = new RoundHistory(playerStorage, player.id, players.createdInitialPlayer, players.roundIds);
 const reelAudio = new ReelAudio();
 reelAudio.setEnabled(false);
 const motionPreference = matchMedia('(prefers-reduced-motion: reduce)');
@@ -130,11 +143,11 @@ function hud(): void {
   ui.soundToggle.setAttribute('aria-pressed', String(reelAudio.enabled));
   ui.soundState.textContent = reelAudio.enabled ? 'ON' : 'OFF';
   ui.soundToggle.title = `Sound ${reelAudio.enabled ? 'on' : 'off'} · Click to turn ${reelAudio.enabled ? 'off' : 'on'}`;
-  ui.forcerTrigger.disabled = !idle || session.balance < session.bet;
+  if (ui.forcerTrigger) ui.forcerTrigger.disabled = !idle || session.balance < session.bet;
   ui.roundLaunch.disabled = !idle;
   ui.menu.disabled = !idle;
   ui.roundMode.hidden = !replaying;
-  ui.roundMode.textContent = replaying && currentRound ? `REPLAY · Original bet ${money(currentRound.wager)} · Balance unchanged` : '';
+  ui.roundMode.textContent = replaying && currentRound ? `UNVERIFIED DEMO REPLAY · Original bet ${money(currentRound.wager)} · Balance unchanged` : '';
   ui.currencyCode.textContent = currency.code;
   ui.reels.setAttribute('aria-busy', String(phase === 'spinning'));
 }
@@ -157,12 +170,12 @@ function chooseBet(value: number): void {
 function initDialogs(): void {
   const betBackdrop = element('bet-backdrop');
   const currencyBackdrop = element('currency-backdrop');
-  const forcerBackdrop = element('forcer-backdrop');
+  const forcerBackdrop = import.meta.env.DEV ? element('forcer-backdrop') : null;
   const roundBackdrop = element('round-backdrop');
   const playerBackdrop = element('player-backdrop');
   dialogs.register(betBackdrop, button('bet-close'));
   dialogs.register(currencyBackdrop, button('currency-close'));
-  dialogs.register(forcerBackdrop, button('forcer-close'));
+  if (forcerBackdrop) dialogs.register(forcerBackdrop, button('forcer-close'));
   dialogs.register(roundBackdrop, button('round-close'));
   dialogs.register(playerBackdrop, button('player-close'), {
     exitMs: () => reducedMotion() ? 0 : 250,
@@ -326,6 +339,7 @@ function initDialogs(): void {
     dialogs.open(currencyBackdrop);
   });
 
+  if (import.meta.env.DEV && ui.forcerTrigger && ui.forcerOptions && forcerBackdrop) {
   for (const option of forceOptions) {
     const choice = document.createElement('button');
     choice.type = 'button';
@@ -337,6 +351,7 @@ function initDialogs(): void {
   ui.forcerTrigger.addEventListener('click', () => {
     if (phase === 'idle' && session.balance >= session.bet) dialogs.open(forcerBackdrop);
   });
+  }
 }
 
 async function showLines(result: SpinResult, signal: AbortSignal): Promise<void> {
@@ -395,7 +410,8 @@ async function presentWin(round: Round): Promise<void> {
 }
 
 async function spin(force: ForceKind | null = null, replayId: string | null = null): Promise<void> {
-  if (phase !== 'idle' || dialogs.isOpen) return;
+  if (!lease.active || phase !== 'idle' || dialogs.isOpen) return;
+  if (force && !import.meta.env.DEV) return;
   reelAudio.unlock();
   let round: Round | null = null;
   let completedResult: SpinResult | null = null;
@@ -408,6 +424,14 @@ async function spin(force: ForceKind | null = null, replayId: string | null = nu
     if (!round) return;
     currentRound = round;
     replaying = replayId !== null;
+    session.settleRound(round, balance => {
+      if (replaying) return;
+      player = players.commitRound({
+        id: player.id, balance, bet: session.bet, currency: currency.code,
+        sound: reelAudio.enabled, elapsedMs: Math.floor(elapsedMilliseconds()),
+        lastRoundId: round!.id, lastReplay: false,
+      });
+    });
     if (!replaying) history.remember(round);
     ui.roundStatus.textContent = '';
     messageCycle.stop();
@@ -423,7 +447,6 @@ async function spin(force: ForceKind | null = null, replayId: string | null = nu
     stopController = null;
     phase = 'presenting';
     board = round.board;
-    session.settleRound(round);
     savePlayer();
     hud();
     await presentWin(round);
@@ -434,11 +457,12 @@ async function spin(force: ForceKind | null = null, replayId: string | null = nu
     if (round && session.roundSettled) {
       board = round.board;
       displayedWin = round.result.total;
-      message(replaying ? 'Replay ended. Balance unchanged.' : 'Win credited. Ready to play again.');
+      message(replaying ? 'Replay ended. Balance unchanged.' : 'Round saved. Balance updated. Ready to play again.');
+      completedResult = round.result;
     } else {
       board = previousBoard;
       displayedWin = previousRound?.result.total ?? 0;
-      message(replaying ? 'Replay interrupted. Balance unchanged.' : 'Spin interrupted. Your wager was returned.');
+      message(replaying ? 'Replay interrupted. Balance unchanged.' : error instanceof Error ? error.message : 'Round could not be saved. No wager was taken.');
     }
     view.render(board);
   } finally {
@@ -494,8 +518,8 @@ function elapsedMilliseconds(): number {
 
 function savePlayer(): void {
   // Unload/timer callbacks still belong to the old player after the destination is selected.
-  if (reloadingPlayer || sessionStart === null) return;
-  // Unlanded spins are not committed: reloading preserves the last saved balance.
+  if (!lease.active || reloadingPlayer || sessionStart === null) return;
+  // Failed acceptance must never overwrite the last committed balance.
   if (session.busy && !session.roundSettled) return;
   player = players.save({
     id: player.id, balance: session.balance, bet: session.bet, currency: currency.code,
@@ -530,8 +554,12 @@ window.addEventListener('pagehide', () => {
   presentationController?.abort();
   reelAudio.suspend();
   messageCycle.setPaused(true);
+  lease.release();
 });
-window.addEventListener('pageshow', syncPlayTime);
+window.addEventListener('pageshow', event => {
+  if (event.persisted) { window.location.reload(); return; }
+  syncPlayTime();
+});
 
 view.render(board);
 document.querySelectorAll<HTMLElement>('[data-payline-count]').forEach(label => {
@@ -575,3 +603,7 @@ async function initialize(): Promise<void> {
 }
 button('intro-retry').addEventListener('click', () => { void initialize(); });
 void initialize();
+
+}
+
+void withGameLock(navigator.locks, startGame, blockedGame);
