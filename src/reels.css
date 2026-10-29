@@ -1,0 +1,173 @@
+/* All chrome belongs to the viewport; symbols and spinning strips are transparent. */
+.board {
+  position: relative;
+  width: 100%;
+  container-type: inline-size;
+  aspect-ratio: 1200 / 640;
+  margin-top: 8px;
+  filter: drop-shadow(0 6px 15px #09010fbd);
+}
+.reel-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  background: url('/assets/reel-frame.svg') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.reel-lines {
+  position: absolute;
+  top: 40%;
+  /* Match the safe interior of the side plates in the 1200-wide frame SVG. */
+  width: 4.166667%;
+  height: 20%;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .2cqw;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+  color: #ffe697;
+  text-shadow: 0 2px 1px #733608, 0 0 10px #efb74b60;
+  pointer-events: none;
+}
+.reel-lines-left { left: 3.833333%; }
+.reel-lines-right { right: 3.833333%; }
+.reel-lines strong { font: 700 3.3cqw Georgia, serif; line-height: 1; }
+.reel-lines span { font: 700 1.05cqw Georgia, serif; line-height: 1.2; }
+.reels {
+  position: absolute;
+  inset: 12.5% 10%;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: #170a2d url('/assets/reel-background.svg') center / 100% 100% no-repeat;
+}
+.reels::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(#05010f75, transparent 16%, transparent 84%, #05010f85),
+    repeating-linear-gradient(90deg, #07021150 0%, transparent 5%, transparent 15%, #07021150 20%);
+  box-shadow: inset 0 0 20px #070112a3;
+}
+.reel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.cell,
+.strip-slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+.cell img,
+.strip-slot img {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 4px #08011380);
+}
+.reel.spinning > .cell { visibility: hidden; }
+.symbol-strip {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 800%;
+  display: flex;
+  flex-direction: column;
+  animation: scroll-symbols .85s linear infinite;
+  will-change: transform;
+}
+.strip-slot { height: calc(100% / 24); flex: 0 0 calc(100% / 24); }
+.reel-grid-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  overflow: hidden;
+  pointer-events: none;
+}
+.reel-divider {
+  position: absolute;
+  display: block;
+  box-shadow: 0 0 0 1px #35120e, 0 0 6px #17071fc9;
+}
+.reel-divider-vertical {
+  top: 0;
+  bottom: 0;
+  width: clamp(3px, .43vw, 5px);
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, #6d300b, #efb947 27%, #fff1a5 50%, #b7721b 76%, #562408);
+}
+.reel-divider-vertical::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(5px, .7vw, 8px);
+  height: clamp(8px, 1.2vw, 14px);
+  transform: translate(-50%, -50%) rotate(0deg);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: linear-gradient(135deg, #fff3af, #e1a72a 28%, #4cbdff 31%, #4533b7 64%, #ffe189 70%, #b66d18);
+}
+.reel-divider-horizontal {
+  left: 0;
+  right: 0;
+  height: clamp(2px, .27vw, 3px);
+  transform: translateY(-50%);
+  background: linear-gradient(#7c3d13, #f4d58b 45%, #ad711e);
+}
+.cell::before,
+.cell::after {
+  content: '';
+  position: absolute;
+  inset: 5%;
+  opacity: 0;
+  pointer-events: none;
+}
+.cell::after {
+  z-index: 2;
+  border: 2px solid #ffe8a3;
+  box-shadow: 0 0 4px #fff1ba, 0 0 15px #ffc13c, inset 0 0 15px #eea12870;
+}
+.cell::before {
+  z-index: 3;
+  background: radial-gradient(circle at 0 0, #fff 0 1px, #ffda6e 2px, transparent 9px),
+    radial-gradient(circle at 100% 0, #fff 0 1px, #ffda6e 2px, transparent 9px),
+    radial-gradient(circle at 0 100%, #fff 0 1px, #ffda6e 2px, transparent 9px),
+    radial-gradient(circle at 100% 100%, #fff 0 1px, #ffda6e 2px, transparent 9px);
+}
+.cell.win.active::before,
+.cell.win.active::after { opacity: 1; }
+.cell.win.active::after { animation: reel-win-glow .65s ease-in-out infinite alternate; }
+.cell.win.active img { animation: pop .65s ease-in-out infinite alternate; }
+@keyframes scroll-symbols {
+  from { transform: translateY(-50%); }
+  to { transform: translateY(0); }
+}
+@keyframes reel-win-glow {
+  to { box-shadow: 0 0 7px #fff8cf, 0 0 24px #ffd147, inset 0 0 22px #ffbf3270; }
+}

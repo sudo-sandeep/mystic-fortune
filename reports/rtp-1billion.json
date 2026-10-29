@@ -1,0 +1,211 @@
+{
+  "generatedAt": "2026-10-29T16:20:29.930Z",
+  "spins": 1000000000,
+  "workers": 4,
+  "elapsedSeconds": 46.295451,
+  "targetRtpPercent": 92,
+  "paytable": {
+    "3": 3.62,
+    "4": 11.14,
+    "5": 26.82
+  },
+  "theoretical": [
+    {
+      "wager": 1,
+      "awardCents": {
+        "3": 362,
+        "4": 1114,
+        "5": 2682
+      },
+      "combinations": "53782400000",
+      "matchCombinations": {
+        "3": "405398560",
+        "4": "36980600",
+        "5": "3716840"
+      },
+      "numerator": "23",
+      "denominator": "25",
+      "rtpPercent": 92,
+      "expectedReturn": 0.92
+    },
+    {
+      "wager": 2,
+      "awardCents": {
+        "3": 724,
+        "4": 2228,
+        "5": 5364
+      },
+      "combinations": "53782400000",
+      "matchCombinations": {
+        "3": "405398560",
+        "4": "36980600",
+        "5": "3716840"
+      },
+      "numerator": "23",
+      "denominator": "25",
+      "rtpPercent": 92,
+      "expectedReturn": 1.84
+    },
+    {
+      "wager": 5,
+      "awardCents": {
+        "3": 1810,
+        "4": 5570,
+        "5": 13410
+      },
+      "combinations": "53782400000",
+      "matchCombinations": {
+        "3": "405398560",
+        "4": "36980600",
+        "5": "3716840"
+      },
+      "numerator": "23",
+      "denominator": "25",
+      "rtpPercent": 92,
+      "expectedReturn": 4.6
+    },
+    {
+      "wager": 10,
+      "awardCents": {
+        "3": 3620,
+        "4": 11140,
+        "5": 26820
+      },
+      "combinations": "53782400000",
+      "matchCombinations": {
+        "3": "405398560",
+        "4": "36980600",
+        "5": "3716840"
+      },
+      "numerator": "23",
+      "denominator": "25",
+      "rtpPercent": 92,
+      "expectedReturn": 9.2
+    },
+    {
+      "wager": 20,
+      "awardCents": {
+        "3": 7240,
+        "4": 22280,
+        "5": 53640
+      },
+      "combinations": "53782400000",
+      "matchCombinations": {
+        "3": "405398560",
+        "4": "36980600",
+        "5": "3716840"
+      },
+      "numerator": "23",
+      "denominator": "25",
+      "rtpPercent": 92,
+      "expectedReturn": 18.4
+    },
+    {
+      "wager": 50,
+      "awardCents": {
+        "3": 18100,
+        "4": 55700,
+        "5": 134100
+      },
+      "combinations": "53782400000",
+      "matchCombinations": {
+        "3": "405398560",
+        "4": "36980600",
+        "5": "3716840"
+      },
+      "numerator": "23",
+      "denominator": "25",
+      "rtpPercent": 92,
+      "expectedReturn": 46
+    },
+    {
+      "wager": 100,
+      "awardCents": {
+        "3": 36200,
+        "4": 111400,
+        "5": 268200
+      },
+      "combinations": "53782400000",
+      "matchCombinations": {
+        "3": "405398560",
+        "4": "36980600",
+        "5": "3716840"
+      },
+      "numerator": "23",
+      "denominator": "25",
+      "rtpPercent": 92,
+      "expectedReturn": 92
+    },
+    {
+      "wager": 200,
+      "awardCents": {
+        "3": 72400,
+        "4": 222800,
+        "5": 536400
+      },
+      "combinations": "53782400000",
+      "matchCombinations": {
+        "3": "405398560",
+        "4": "36980600",
+        "5": "3716840"
+      },
+      "numerator": "23",
+      "denominator": "25",
+      "rtpPercent": 92,
+      "expectedReturn": 184
+    },
+    {
+      "wager": 500,
+      "awardCents": {
+        "3": 181000,
+        "4": 557000,
+        "5": 1341000
+      },
+      "combinations": "53782400000",
+      "matchCombinations": {
+        "3": "405398560",
+        "4": "36980600",
+        "5": "3716840"
+      },
+      "numerator": "23",
+      "denominator": "25",
+      "rtpPercent": 92,
+      "expectedReturn": 460
+    }
+  ],
+  "legacyTheoretical": {
+    "wager": 1,
+    "awardCents": {
+      "3": 12,
+      "4": 35,
+      "5": 85
+    },
+    "combinations": "53782400000",
+    "matchCombinations": {
+      "3": "405398560",
+      "4": "36980600",
+      "5": "3716840"
+    },
+    "numerator": "80937939",
+    "denominator": "2689120000",
+    "rtpPercent": 3.009829944368418,
+    "expectedReturn": 0.03009829944368418
+  },
+  "simulation": {
+    "rtpPercent": 92.002354288,
+    "legacyRtpPercent": 3.009895858,
+    "confidence95Percent": [
+      91.98247359447925,
+      92.02223498152077
+    ],
+    "hitRatePercent": 12.0464238,
+    "totalWager": 1000000000,
+    "totalReturned": 920023542.88,
+    "matchingLines": {
+      "3": 188429144,
+      "4": 17192967,
+      "5": 1729321
+    }
+  },
+  "scope": "Independent natural reel outcomes; excludes developer forcers and balance-neutral replays. No UI animations, round-ID allocation or bankroll stopping."
+}
